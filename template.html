@@ -1,0 +1,495 @@
+<title>ルールスイーパー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: survey-sheet table — board on the left, rule card and tools on the right; stacks on phones. */
+:root {
+  --paper: #e9eef2;
+  --sheet: #f6f8fa;
+  --ink: #1b2734;
+  --ink-soft: #5a6b7c;
+  --line: #c5d0da;
+  --tile: #cdd7e0;
+  --tile-hi: #dfe7ee;
+  --tile-lo: #a9b7c4;
+  --open: #f8fafb;
+  --flag: #d2412a;
+  --warn: #e0861a;
+  --ok: #2f8a5b;
+  --scope: rgba(46, 104, 178, .16);
+  --n1: #2463b8; --n2: #2a8550; --n3: #c63a28; --n4: #283c86; --n5: #8a2f1d; --n6: #1f7f86; --n7: #222; --n8: #666;
+  --r0: #c3d7ef; --r1: #efd3b4; --r2: #c9e4c4; --r3: #dec6e7;
+  --r0o: #ebf2fa; --r1o: #faf1e7; --r2o: #edf7ec; --r3o: #f5edf8;
+  --r4: #f0e3a6; --r5: #bfe3e2; --r4o: #faf5dc; --r5o: #e9f6f5;
+  --f-disp: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121a23; --sheet: #18222d; --ink: #e3eaf1; --ink-soft: #93a5b7; --line: #2c3a48;
+    --tile: #32414f; --tile-hi: #42525f; --tile-lo: #222d38; --open: #1c2631;
+    --flag: #ff6a4f; --warn: #f2a33a; --ok: #5cc28c; --scope: rgba(110, 165, 240, .2);
+    --n1: #7fb2ff; --n2: #6fd197; --n3: #ff8670; --n4: #a9b6ff; --n5: #ffb08a; --n6: #6fd6dc; --n7: #e3eaf1; --n8: #aab;
+    --r0: #2b4260; --r1: #574231; --r2: #2f4d35; --r3: #4b3557;
+    --r0o: #1f2d3e; --r1o: #33291f; --r2o: #1f3124; --r3o: #2f2337;
+    --r4: #55502a; --r5: #234f50; --r4o: #2f2c1a; --r5o: #19302f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121a23; --sheet: #18222d; --ink: #e3eaf1; --ink-soft: #93a5b7; --line: #2c3a48;
+  --tile: #32414f; --tile-hi: #42525f; --tile-lo: #222d38; --open: #1c2631;
+  --flag: #ff6a4f; --warn: #f2a33a; --ok: #5cc28c; --scope: rgba(110, 165, 240, .2);
+  --n1: #7fb2ff; --n2: #6fd197; --n3: #ff8670; --n4: #a9b6ff; --n5: #ffb08a; --n6: #6fd6dc; --n7: #e3eaf1; --n8: #aab;
+  --r0: #2b4260; --r1: #574231; --r2: #2f4d35; --r3: #4b3557;
+  --r0o: #1f2d3e; --r1o: #33291f; --r2o: #1f3124; --r3o: #2f2337;
+  --r4: #55502a; --r5: #234f50; --r4o: #2f2c1a; --r5o: #19302f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--paper);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.wrap > * { min-width: 0; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { font-family: var(--f-disp); font-weight: 400; font-size: 30px; letter-spacing: .04em; margin: 0; line-height: 1.2; }
+.sub { color: var(--ink-soft); font-size: 13px; margin: 0; }
+
+.picker { background: var(--sheet); border: 1px solid var(--line); }
+.picker summary { cursor: pointer; padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.picker summary span { font-weight: 400; color: var(--ink-soft); font-size: 13px; }
+.picker-scroll { overflow-x: auto; padding: 0 14px 14px; }
+.stages { border-collapse: collapse; font-size: 13px; }
+.stages th { text-align: left; font-weight: 500; padding: 4px 14px 4px 0; white-space: nowrap; }
+.stages thead th { font-size: 11px; letter-spacing: .12em; color: var(--ink-soft); font-weight: 400; text-align: center; padding: 0 0 4px; }
+.stages td { padding: 3px; }
+.stages button {
+  font: inherit; font-size: 12px; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 3px; cursor: pointer;
+  width: 76px; height: 32px; display: inline-flex; gap: 4px; align-items: center; justify-content: center;
+}
+.stages button .lv { color: var(--warn); letter-spacing: -.05em; }
+.stages button[aria-current="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.stages button[aria-current="true"] .lv { color: inherit; }
+.stages button .done { color: var(--ok); font-weight: 700; }
+.stages button[aria-current="true"] .done { color: inherit; }
+.stages button:focus-visible { outline: 2px solid var(--n1); outline-offset: 2px; }
+
+.main { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start; }
+
+
+.board-col { display: grid; gap: 10px; justify-items: center; }
+.board-frame { background: var(--sheet); border: 1px solid var(--line); padding: 10px; position: relative; max-width: 100%; }
+.board { display: grid; gap: 0; position: relative; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.board.sym::after {
+  content: ""; position: absolute; top: -6px; bottom: -6px; left: 50%; width: 0;
+  border-left: 2px dashed var(--flag); opacity: .55; pointer-events: none;
+}
+.cell {
+  width: var(--cs); height: var(--cs); border: 0; padding: 0; margin: 0;
+  font-family: var(--f-disp); font-size: calc(var(--cs) * .52); line-height: 1;
+  display: grid; place-items: center; cursor: pointer; position: relative;
+  background: var(--tile); color: var(--ink);
+  box-shadow: inset 2px 2px 0 var(--tile-hi), inset -2px -2px 0 var(--tile-lo);
+}
+.cell:focus-visible { outline: 2px solid var(--n1); outline-offset: -3px; z-index: 2; }
+.cell.open { background: var(--open); box-shadow: inset 0 0 0 .5px var(--line); cursor: default; }
+.cell.given::before { content: ""; position: absolute; inset: 3px; border: 1px dotted var(--ink-soft); opacity: .45; pointer-events: none; }
+.cell.reg0 { background: var(--r0); } .cell.reg1 { background: var(--r1); } .cell.reg2 { background: var(--r2); } .cell.reg3 { background: var(--r3); } .cell.reg4 { background: var(--r4); } .cell.reg5 { background: var(--r5); }
+.cell.open.reg0 { background: var(--r0o); } .cell.open.reg1 { background: var(--r1o); } .cell.open.reg2 { background: var(--r2o); } .cell.open.reg3 { background: var(--r3o); } .cell.open.reg4 { background: var(--r4o); } .cell.open.reg5 { background: var(--r5o); }
+.cell.bt { border-top: 2px solid var(--ink); } .cell.bl { border-left: 2px solid var(--ink); }
+.cell.br { border-right: 2px solid var(--ink); } .cell.bb { border-bottom: 2px solid var(--ink); }
+.cell.scope::after { content: ""; position: absolute; inset: 0; background: var(--scope); pointer-events: none; }
+.cell.n1 { color: var(--n1); } .cell.n2 { color: var(--n2); } .cell.n3 { color: var(--n3); } .cell.n4 { color: var(--n4); }
+.cell.n5 { color: var(--n5); } .cell.n6 { color: var(--n6); } .cell.n7 { color: var(--n7); } .cell.n8 { color: var(--n8); }
+.cell.over { text-decoration: underline wavy var(--warn); text-underline-offset: 3px; }
+.cell .flag { width: 46%; height: 56%; }
+.cell.bad .flag { filter: drop-shadow(0 0 0 var(--warn)); }
+.cell.bad { box-shadow: inset 0 0 0 3px var(--warn); }
+.cell.boom { background: var(--flag); color: #fff; box-shadow: none; }
+.cell.boom svg { width: 58%; height: 58%; }
+.cell.cross-n::before { content: "+"; position: absolute; top: 1px; right: 3px; font-size: calc(var(--cs) * .22); color: var(--ink-soft); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.btn {
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); background: var(--sheet);
+  border: 1px solid var(--ink); border-radius: 3px; padding: 6px 14px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 38px;
+}
+.btn:focus-visible { outline: 2px solid var(--n1); outline-offset: 2px; }
+.btn.on { background: var(--flag); border-color: var(--flag); color: #fff; }
+.btn svg { width: 14px; height: 16px; }
+
+.side { display: grid; gap: 14px; min-width: 0; }
+.card { background: var(--sheet); border: 1px solid var(--line); padding: 16px 18px; display: grid; gap: 8px; }
+.eyebrow { font-size: 11px; letter-spacing: .14em; color: var(--ink-soft); text-transform: uppercase; margin: 0; }
+.stage-title { font-family: var(--f-disp); font-size: 22px; margin: 0; line-height: 1.3; text-wrap: balance; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rules li { border-left: 3px solid var(--flag); padding: 2px 0 2px 10px; font-weight: 700; font-size: 16px; line-height: 1.5; }
+.rules li.lvnote { border-left-color: var(--line); font-size: 13px; }
+.rules li small { display: block; font-weight: 400; font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.stat { background: var(--sheet); padding: 8px 12px; }
+.stat b { display: block; font-family: var(--f-disp); font-weight: 400; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat span { font-size: 12px; color: var(--ink-soft); }
+.notice { font-size: 13px; color: var(--ink-soft); margin: 0; min-height: 1.6em; }
+.notice.warn { color: var(--warn); font-weight: 700; }
+.howto { font-size: 13px; color: var(--ink-soft); margin: 0; padding-left: 1.2em; display: grid; gap: 2px; }
+
+.clear {
+  position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--sheet) 82%, transparent);
+  z-index: 5; text-align: center;
+}
+.clear div { display: grid; gap: 10px; justify-items: center; padding: 16px; }
+.clear strong { font-family: var(--f-disp); font-weight: 400; font-size: 40px; letter-spacing: .1em; color: var(--ok); line-height: 1.1; }
+.clear p { margin: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .clear strong { animation: pop .35s ease-out; }
+  @keyframes pop { from { transform: scale(.7); opacity: .2; } to { transform: none; opacity: 1; } }
+}
+@media (max-width: 760px) {
+  .main { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
+  .side { display: contents; }
+  .stages button { width: 60px; }
+  .stages th { padding-right: 8px; }
+  .picker-scroll { padding: 0 10px 12px; }
+  .rule-card { order: 1; } .board-col { order: 2; } .stats { order: 3; } .notice { order: 4; } .howto-card { order: 5; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>ルールスイーパー</h1>
+    <p class="sub">地雷はルールどおりに埋まっている。数字とルールだけで、すべて見抜ける。</p>
+  </header>
+
+  <details class="picker" id="picker" open>
+    <summary>ステージ選択 <span id="progress"></span></summary>
+    <div class="picker-scroll">
+      <table class="stages" aria-label="ステージ選択">
+        <thead><tr><th scope="col"><span hidden>ルール</span></th><th scope="col">初級</th><th scope="col">中級</th><th scope="col">上級</th></tr></thead>
+        <tbody id="stages"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="main">
+    <div class="board-col">
+      <div class="board-frame">
+        <div class="board" id="board" role="grid" aria-label="盤面"></div>
+        <div class="clear" id="clear" hidden>
+          <div>
+            <strong>CLEAR</strong>
+            <p id="clearMsg"></p>
+            <button class="btn" id="nextBtn" type="button">次のステージへ</button>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="modeBtn" type="button" aria-pressed="false"></button>
+        <button class="btn" id="resetBtn" type="button">最初から</button>
+      </div>
+    </div>
+
+    <aside class="side">
+      <section class="card rule-card">
+        <p class="eyebrow" id="stageNo"></p>
+        <h2 class="stage-title" id="stageName"></h2>
+        <ul class="rules" id="rules"></ul>
+      </section>
+      <div class="stats">
+        <div class="stat"><b id="sMines"></b><span>残り地雷</span></div>
+        <div class="stat"><b id="sSafe"></b><span>残り安全マス</span></div>
+        <div class="stat"><b id="sMiss"></b><span>ミス</span></div>
+      </div>
+      <p class="notice" id="notice" aria-live="polite"></p>
+      <section class="card howto-card">
+        <p class="eyebrow">遊び方</p>
+        <ul class="howto">
+          <li>点線枠のマスは最初から開いているヒントです。</li>
+          <li>クリックで開く、右クリックで旗。スマホは下の「旗モード」で切り替え。</li>
+          <li>開いた数字を押すと、旗の数が合っていれば周りをまとめて開きます。</li>
+          <li>数字にカーソルを乗せると、数えている範囲が光ります。</li>
+          <li>地雷を開くとミスとして数えますが、そのまま続けられます。</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+const STAGES = __STAGES__;
+
+const GROUPS = {
+  noadj: "離ればなれ", rowcol: "一列に一つ", sym: "鏡あわせ", region: "区画ごとに",
+  cross: "十字の数字", connected: "ひとかたまり", combo: "離れて一列",
+};
+const LEVELS = ["", "初級", "中級", "上級"];
+const LEVEL_NOTE = ["",
+  "数字1つ、ルール1つを見れば決まるマスだけで解けます。",
+  "2つの数字(または数字とルール)を見比べる推理が必要です。",
+  "「ここが地雷だとしたら矛盾する」という仮定の推理が必要です。"];
+const ruleText = (r, s) => ({
+  noadj: ["地雷どうしは隣り合わない", "上下左右・斜めのどの8方向にも、別の地雷はない。"],
+  rowcol: ["どの行・どの列にも地雷はちょうど1個", "横一列にも縦一列にも1個ずつ。2個目は絶対にない。"],
+  sym: ["地雷の配置は左右対称", "赤い点線を軸に鏡写し。片側がわかれば反対側も決まる。"],
+  region: [`色分けされた区画それぞれに地雷がちょうど${s.perRegion}個`, `太線で区切られた${new Set(s.regions || []).size}つの区画に${s.perRegion}個ずつ。`],
+  cross: ["数字は上下左右の4マスだけを数える", "斜めは数えない。数字に「+」の印がついている。"],
+  connected: ["地雷はすべてつながって1つのかたまり", "上下左右でつながる。離れた場所にぽつんと1個、はない。"],
+})[r];
+const stageId = s => `${s.key}-${s.level}`;
+const stageName = s => `${GROUPS[s.key]}・${LEVELS[s.level]}`;
+
+const FLAG_SVG = '<svg class="flag" viewBox="0 0 14 16" aria-hidden="true"><path d="M3 1v14" stroke="currentColor" stroke-width="2"/><path d="M4 1.5l9 3.5-9 3.5z" fill="var(--flag)"/><path d="M1 15h6" stroke="currentColor" stroke-width="2"/></svg>';
+const MINE_SVG = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="5.5" fill="currentColor"/><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.4" fill="var(--flag)"/></svg>';
+
+const N8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const N4 = [[-1,0],[1,0],[0,-1],[0,1]];
+
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem("rulesweeper.cleared.v2") || "{}"); } catch (e) { return {}; } },
+  set(v) { try { localStorage.setItem("rulesweeper.cleared.v2", JSON.stringify(v)); } catch (e) {} },
+};
+
+let S, idx = 0, state, flagMode = false, cleared = store.get();
+
+const $ = id => document.getElementById(id);
+
+function nbrs(i, dirs) {
+  const x = i % S.W, y = (i / S.W) | 0, out = [];
+  for (const [dy, dx] of dirs) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < S.W && ny < S.H) out.push(ny * S.W + nx); }
+  return out;
+}
+const scopeOf = i => nbrs(i, S.cross ? N4 : N8);
+
+function load(k, saved) {
+  idx = k; S = STAGES[k];
+  S.m = [...S.mines].map(Number);
+  S.num = S.m.map((_, i) => scopeOf(i).filter(j => S.m[j]).length);
+  state = saved || { opened: S.m.map(() => 0), flags: S.m.map(() => 0), boom: S.m.map(() => 0), miss: 0, done: false };
+  if (!saved) for (const i of S.revealed) state.opened[i] = 1;
+  renderStages(); renderBoard(); renderSide(); update();
+}
+
+function renderStages() {
+  const tb = $("stages");
+  tb.innerHTML = "";
+  for (const key of Object.keys(GROUPS)) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th scope="row">${GROUPS[key]}</th>`;
+    for (let lv = 1; lv <= 3; lv++) {
+      const k = STAGES.findIndex(s => s.key === key && s.level === lv);
+      const td = document.createElement("td");
+      if (k >= 0) {
+        const s = STAGES[k], b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-current", k === idx ? "true" : "false");
+        b.setAttribute("aria-label", stageName(s) + (stageId(s) in cleared ? " クリア済み" : ""));
+        b.innerHTML = `<span class="lv">${"★".repeat(lv)}</span>${stageId(s) in cleared ? '<span class="done" aria-hidden="true">✓</span>' : ""}`;
+        b.onclick = () => { load(k); if (window.innerWidth <= 760) $("picker").open = false; };
+        td.appendChild(b);
+      }
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+  const n = STAGES.filter(s => stageId(s) in cleared).length;
+  $("progress").textContent = `${n} / ${STAGES.length} クリア ・ 今: ${stageName(S)}`;
+}
+
+function renderSide() {
+  $("stageNo").textContent = `${LEVELS[S.level]} ${"★".repeat(S.level)}  ・  ${S.W}×${S.H}  地雷${S.total}個`;
+  $("stageName").textContent = GROUPS[S.key];
+  const keys = S.cross ? ["cross", ...S.rules] : S.rules;
+  $("rules").innerHTML = keys.map(r => { const [a, b] = ruleText(r, S); return `<li>${a}<small>${b}</small></li>`; }).join("")
+    + `<li class="lvnote">${LEVELS[S.level]}<small>${LEVEL_NOTE[S.level]}</small></li>`;
+}
+
+function cellSize() {
+  const avail = Math.min(window.innerWidth, document.documentElement.clientWidth) - 32 - 22;
+  return Math.max(28, Math.min(54, Math.floor(avail / S.W)));
+}
+
+function renderBoard() {
+  const bd = $("board");
+  bd.style.setProperty("--cs", cellSize() + "px");
+  bd.style.gridTemplateColumns = `repeat(${S.W}, var(--cs))`;
+  bd.classList.toggle("sym", S.rules.includes("sym"));
+  bd.innerHTML = "";
+  for (let i = 0; i < S.W * S.H; i++) {
+    const c = document.createElement("button");
+    c.type = "button"; c.className = "cell"; c.dataset.i = i;
+    if (S.regions) {
+      const x = i % S.W, y = (i / S.W) | 0, r = S.regions[i];
+      c.classList.add("reg" + r);
+      if (y === 0 || S.regions[i - S.W] !== r) c.classList.add("bt");
+      if (x === 0 || S.regions[i - 1] !== r) c.classList.add("bl");
+      if (x === S.W - 1) c.classList.add("br");
+      if (y === S.H - 1) c.classList.add("bb");
+    }
+    if (S.revealed.includes(i)) c.classList.add("given");
+    bd.appendChild(c);
+  }
+  $("clear").hidden = true;
+}
+
+function update() {
+  const cells = $("board").children;
+  const bad = violations();
+  let flagsN = 0, safeLeft = 0, overAny = false;
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    const open = state.opened[i], flag = state.flags[i], boom = state.boom[i];
+    c.classList.toggle("open", !!open);
+    c.classList.toggle("boom", !!boom);
+    c.classList.remove("n1","n2","n3","n4","n5","n6","n7","n8","over","bad","cross-n");
+    if (flag) flagsN++;
+    if (!S.m[i] && !open) safeLeft++;
+    let label;
+    if (boom) { c.innerHTML = MINE_SVG; label = "地雷(ミス)"; }
+    else if (open) {
+      const n = S.num[i];
+      c.textContent = n ? n : "";
+      if (n) c.classList.add("n" + n);
+      if (S.cross) c.classList.add("cross-n");
+      const f = scopeOf(i).filter(j => state.flags[j] || state.boom[j]).length;
+      if (f > n) { c.classList.add("over"); overAny = true; }
+      label = `数字 ${n}`;
+    } else if (flag) {
+      c.innerHTML = FLAG_SVG; label = "旗";
+      if (bad.has(i)) c.classList.add("bad");
+    } else { c.textContent = ""; label = "未開封"; }
+    const x = i % S.W + 1, y = ((i / S.W) | 0) + 1;
+    c.setAttribute("aria-label", `${y}行${x}列 ${label}`);
+  }
+  const boomN = state.boom.reduce((a, b) => a + b, 0);
+  $("sMines").textContent = S.total - flagsN - boomN;
+  $("sSafe").textContent = safeLeft;
+  $("sMiss").textContent = state.miss;
+
+  const n = $("notice");
+  if (bad.size) { n.textContent = "旗の置き方がルールに反しています(オレンジ枠)。"; n.className = "notice warn"; }
+  else if (overAny) { n.textContent = "数字より多い旗が周りにあります(波線の数字)。"; n.className = "notice warn"; }
+  else { n.textContent = state.done ? "" : "ルールを手がかりに、確実に安全なマスから開けていきましょう。"; n.className = "notice"; }
+
+  if (safeLeft === 0 && !state.done) {
+    state.done = true;
+    for (let i = 0; i < S.m.length; i++) if (S.m[i] && !state.boom[i]) state.flags[i] = 1;
+    cleared[stageId(S)] = Math.min(cleared[stageId(S)] ?? 99, state.miss); store.set(cleared);
+    renderStages(); update(); return;
+  }
+  if (state.done) {
+    $("clear").hidden = false;
+    $("clearMsg").textContent = state.miss === 0 ? "ノーミスで解きました。" : `ミス ${state.miss} 回でクリア。次はノーミスを狙えます。`;
+    $("nextBtn").hidden = idx >= STAGES.length - 1;
+    if (idx >= STAGES.length - 1) $("clearMsg").textContent += " 全ステージ終了です。";
+  }
+}
+
+// flags that break a stated rule
+function violations() {
+  const bad = new Set(), F = i => state.flags[i] || state.boom[i];
+  const flagged = []; for (let i = 0; i < S.m.length; i++) if (state.flags[i]) flagged.push(i);
+  for (const r of S.rules) {
+    if (r === "noadj") for (const i of flagged) if (nbrs(i, N8).some(F)) bad.add(i);
+    if (r === "rowcol") {
+      for (let y = 0; y < S.H; y++) { const row = []; for (let x = 0; x < S.W; x++) if (F(y * S.W + x)) row.push(y * S.W + x); if (row.length > 1) row.forEach(i => state.flags[i] && bad.add(i)); }
+      for (let x = 0; x < S.W; x++) { const col = []; for (let y = 0; y < S.H; y++) if (F(y * S.W + x)) col.push(y * S.W + x); if (col.length > 1) col.forEach(i => state.flags[i] && bad.add(i)); }
+    }
+    if (r === "region") {
+      const by = {}; for (let i = 0; i < S.m.length; i++) if (F(i)) (by[S.regions[i]] ||= []).push(i);
+      for (const k in by) if (by[k].length > S.perRegion) by[k].forEach(i => state.flags[i] && bad.add(i));
+    }
+  }
+  return bad;
+}
+
+function openCell(i) {
+  if (state.opened[i] || state.flags[i] || state.boom[i]) return;
+  if (S.m[i]) { state.boom[i] = 1; state.miss++; return; }
+  const stack = [i];
+  while (stack.length) {
+    const c = stack.pop();
+    if (state.opened[c] || S.m[c]) continue;
+    state.opened[c] = 1; state.flags[c] = 0;
+    if (S.num[c] === 0) for (const j of scopeOf(c)) if (!state.opened[j] && !state.flags[j]) stack.push(j);
+  }
+}
+
+function chord(i) {
+  const around = scopeOf(i);
+  const f = around.filter(j => state.flags[j] || state.boom[j]).length;
+  if (f !== S.num[i]) return;
+  for (const j of around) openCell(j);
+}
+
+function act(i, wantFlag) {
+  if (state.done) return;
+  if (state.opened[i]) { if (!wantFlag) chord(i); }
+  else if (state.boom[i]) return;
+  else if (wantFlag) state.flags[i] ^= 1;
+  else openCell(i);
+  update();
+}
+
+const bd = $("board");
+bd.addEventListener("click", e => { const c = e.target.closest(".cell"); if (c) act(+c.dataset.i, flagMode); });
+bd.addEventListener("contextmenu", e => { const c = e.target.closest(".cell"); if (!c) return; e.preventDefault(); act(+c.dataset.i, !flagMode); });
+bd.addEventListener("keydown", e => {
+  const c = e.target.closest(".cell"); if (!c) return;
+  const i = +c.dataset.i; let t = -1;
+  if (e.key === "ArrowRight" && i % S.W < S.W - 1) t = i + 1;
+  if (e.key === "ArrowLeft" && i % S.W > 0) t = i - 1;
+  if (e.key === "ArrowDown" && i + S.W < S.m.length) t = i + S.W;
+  if (e.key === "ArrowUp" && i - S.W >= 0) t = i - S.W;
+  if (t >= 0) { e.preventDefault(); bd.children[t].focus(); }
+  if (e.key === "f" || e.key === "F") { e.preventDefault(); act(i, true); }
+});
+function scope(i, on) {
+  for (const j of scopeOf(i)) bd.children[j].classList.toggle("scope", on);
+}
+let hovered = -1;
+bd.addEventListener("pointerover", e => {
+  const c = e.target.closest(".cell"); if (!c || e.pointerType === "touch") return;
+  const i = +c.dataset.i;
+  if (hovered >= 0) scope(hovered, false);
+  hovered = state.opened[i] ? i : -1;
+  if (hovered >= 0) scope(hovered, true);
+});
+bd.addEventListener("pointerleave", () => { if (hovered >= 0) scope(hovered, false); hovered = -1; });
+
+function setMode(v) {
+  flagMode = v;
+  const b = $("modeBtn");
+  b.classList.toggle("on", v);
+  b.setAttribute("aria-pressed", v ? "true" : "false");
+  b.innerHTML = v ? FLAG_SVG.replace('class="flag"', "") + "旗モード中" : FLAG_SVG.replace('class="flag"', "") + "旗モード";
+}
+$("modeBtn").onclick = () => setMode(!flagMode);
+$("resetBtn").onclick = () => load(idx);
+$("nextBtn").onclick = () => load(Math.min(idx + 1, STAGES.length - 1));
+window.addEventListener("resize", () => bd.style.setProperty("--cs", cellSize() + "px"));
+
+function start(data) {
+  setMode(false);
+  if (window.innerWidth <= 760) $("picker").open = false;
+  const k = Number.isInteger(data?.idx) && STAGES[data.idx] ? data.idx : 0;
+  load(k, data?.state && data.state.opened?.length === STAGES[k].W * STAGES[k].H ? data.state : null);
+}
+window.claude?.hot?.snapshot?.(() => ({ idx, state }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
